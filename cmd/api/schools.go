@@ -5,6 +5,9 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
+
+	"appletree.joanneyong.net/internal/data"
 )
 
 // createSchoolHandler for the "POST /v1/schools" endpoint
@@ -19,6 +22,22 @@ func (app *application) showSchoolHandler(w http.ResponseWriter, r *http.Request
 		http.NotFound(w, r)
 		return
 	}
-	// Display the school id
-	fmt.Fprintf(w, "show the details for school %d\n", id)
+	// Create a new instance of the School struct containing the ID we extracted
+	// from our URL and some sample data
+	school := data.School{
+		ID:        id,
+		CreatedAt: time.Now(),
+		Name:      "Apple Tree",
+		Level:     "High School",
+		Contact:   "Anna Smith",
+		Phone:     "601-4411",
+		Address:   "14 Apple street",
+		Mode:      []string{"blended", "online"},
+		Version:   1,
+	}
+	err = app.writeJSON(w, http.StatusOK, school, nil)
+	if err != nil {
+		app.logger.Println(err)
+		http.Error(w, "The server encountered a problem and could not process your request", http.StatusInternalServerError)
+	}
 }
