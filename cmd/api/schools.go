@@ -1,9 +1,8 @@
-//Filename: cmd/api/schools.go
+// Filename: cms/api/schools.go
 
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,7 +13,7 @@ import (
 
 // createSchoolHandler for the "POST /v1/schools" endpoint
 func (app *application) createSchoolHandler(w http.ResponseWriter, r *http.Request) {
-	// Our target decvode destination
+	// Our target decode destination
 	var input struct {
 		Name    string   `json:"name"`
 		Level   string   `json:"level"`
@@ -26,11 +25,12 @@ func (app *application) createSchoolHandler(w http.ResponseWriter, r *http.Reque
 		Mode    []string `json:"mode"`
 	}
 	// Initialize a new json.Decoder instance
-	err := json.NewDecoder(r.Body).Decode(&input)
+	err := app.readJSON(w, r, &input)
 	if err != nil {
-		app.errorResponse(w, r, http.StatusBadRequest, err.Error())
+		app.badRequestResponse(w, r, err)
 		return
 	}
+
 	// Copy the values from the input struct to a new School struct
 	school := &data.School{
 		Name:    input.Name,
@@ -76,7 +76,6 @@ func (app *application) showSchoolHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	//Fetch the specific school
 	// Fetch the specific school
 	school, err := app.models.Schools.Get(id)
 	// Handle errors
@@ -217,4 +216,37 @@ func (app *application) deleteSchoolHandler(w http.ResponseWriter, r *http.Reque
 		app.serverErrorResponse(w, r, err)
 	}
 
+}
+
+// The listSchoolsHandler() allows the client to see a listing of schools
+// based on a set of criteria
+func (app *application) listSchoolsHandler(w http.ResponseWriter, r *http.Request) {
+	// Create an input struct to hold our query parameters
+	var input struct {
+		Name  string
+		Level string
+		Mode  []string
+		data.Filters
+	}
+	// Initialize a validator
+	v := validator.New()
+	// Get the URL values map
+	qs := r.URL.Query()
+	// Use the helper methods to extract the values
+	input.Name = app.readString(qs, "name", "")
+	input.Level = app.readString(qs, "level", "")
+	input.Mode = app.readCSV(qs, "mode", []string{})
+	// Get the page information
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	// Get the sort information
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+	input.Filters.SortList = []string{"id", "name", "level", "-id", "-name", "-level"}
+	// Check for validation errors
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+	//Results dump
+	fmt.Fprintf(w, "%+v\n", input)
 }
