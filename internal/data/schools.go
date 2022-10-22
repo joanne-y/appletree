@@ -79,7 +79,6 @@ func (m SchoolModel) Insert(school *School) error {
 	// Cleanup to prevent memory leaks
 	defer cancel()
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&school.ID, &school.CreatedAt, &school.Version)
-	//IDE shows error but code runs as expected
 }
 
 // Get() allows us to retrieve a specific School
@@ -201,4 +200,60 @@ func (m SchoolModel) Delete(id int64) error {
 		return ErrRecordNotFound
 	}
 	return nil
+}
+
+// The GetAll() method retuns a list of all the schools sorted by id
+func (m SchoolModel) GetAll(name string, level string, mode []string, filters Filters) ([]*School, error) {
+	// Construct the query
+	query := `
+		SELECT id, created_at, name, level,
+		       contact, phone, email, website,
+			   address, mode, version
+		FROM schools
+		WHERE (LOWER(name) = LOWER($1) OR $1 = '')
+		AND (LOWER(level) = LOWER($2) OR $2 = '')
+		AND (mode @> $3 OR $3 = '{}' )
+		ORDER BY id
+	`
+	// Create a 3-second-timout context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	// Execute the query
+	rows, err := m.DB.QueryContext(ctx, query, name, level, pq.Array(mode))
+	if err != nil {
+		return nil, err
+	}
+	// Close the resultset
+	defer rows.Close()
+	// Initialize an empty slice to hold the School data
+	schools := []*School{}
+	// Iterate over the rows in the resultset
+	for rows.Next() {
+		var school School
+		// Scan the values from the row into school
+		err := rows.Scan(
+			&school.ID,
+			&school.CreatedAt,
+			&school.Name,
+			&school.Level,
+			&school.Contact,
+			&school.Phone,
+			&school.Email,
+			&school.Website,
+			&school.Address,
+			pq.Array(&school.Mode),
+			&school.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+		// Add the School to our slice
+		schools = append(schools, &school)
+	}
+	// Check for errors after looping through the resultset
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	// Return the slice of Schools
+	return schools, nil
 }
