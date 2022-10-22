@@ -1,1 +1,3 @@
-DROP TABLE IF EXISTS school;
+-- Filename: migrations/000001_create_schools_table.down.sql
+
+DROP TABLE IF EXISTS schools;

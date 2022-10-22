@@ -3,9 +3,11 @@
 package data
 
 import (
+	"database/sql"
 	"time"
 
 	"appletree.joanneyong.net/internal/validator"
+	"github.com/lib/pq"
 )
 
 type School struct {
@@ -49,4 +51,41 @@ func ValidateSchool(v *validator.Validator, school *School) {
 	v.Check(len(school.Mode) >= 1, "mode", "must contain at least 1 entry")
 	v.Check(len(school.Mode) <= 5, "mode", "must contain at most 5 entries")
 	v.Check(validator.Unique(school.Mode), "mode", "must not contain duplicate entries")
+}
+
+// Define a SchoolModel which wraps a sql.DB connection pool
+type SchoolModel struct {
+	DB *sql.DB
+}
+
+// Insert() allows us  to create a new School
+func (m SchoolModel) Insert(school *School) error {
+	query := `
+		INSERT INTO schools (name, level, contact, phone, email, website, address, mode)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, created_at, version
+	`
+	// Collect the data fields into a slice
+	args := []interface{}{
+		school.Name, school.Level,
+		school.Contact, school.Phone,
+		school.Email, school.Website,
+		school.Address, pq.Array(school.Mode),
+	}
+	return m.DB.QueryRow(query, args).Scan(&school.ID, &school.CreatedAt, &school.Version)
+}
+
+// Get() allows us to retreive a specific School
+func (m SchoolModel) Get(id int64) (*School, error) {
+	return nil, nil
+}
+
+// Update() allows us to edit/alter a specific School
+func (m SchoolModel) Update(school *School) error {
+	return nil
+}
+
+// Delete() removes a specific School
+func (m SchoolModel) Delete(id int64) error {
+	return nil
 }
