@@ -137,42 +137,53 @@ func (app *application) updateSchoolHandler(w http.ResponseWriter, r *http.Reque
 		app.badRequestResponse(w, r, err)
 		return
 	}
-	// Copy / Update the fields / values in the school variable using the fields
-	// in the input struct
+	// Check for updates
+	if input.Name != nil {
+		school.Name = *input.Name
+	}
+	if input.Level != nil {
+		school.Level = *input.Level
+	}
+	if input.Contact != nil {
+		school.Contact = *input.Contact
+	}
+	if input.Phone != nil {
+		school.Phone = *input.Phone
+	}
+	if input.Email != nil {
+		school.Email = *input.Email
+	}
+	if input.Website != nil {
+		school.Website = *input.Website
+	}
+	if input.Address != nil {
+		school.Address = *input.Address
+	}
+	if input.Mode != nil {
+		school.Mode = input.Mode
+	}
 
-	school.Name = *input.Name
-	school.Level = *input.Level
-	school.Contact = *input.Contact
-	school.Phone = *input.Phone
-	school.Email = *input.Email
-	school.Website = *input.Website
-	school.Address = *input.Address
-	school.Mode = input.Mode
-
-	//Perform validation on the updated School. If validation fails, then
-	//we send a 422 - Unprocessable Entity response to the client
-	//Initialize a new Validator instance
+	// Perform validation on the updated School. If validation fails, then
+	// we send a 422 - Unprocessable Entity respose to the client
+	// Initialize a new Validator instance
 	v := validator.New()
 
-	//Check the map to determine if there were any validation errors
+	// Check the map to determine if there were any validation errors
 	if data.ValidateSchool(v, school); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
-
-	//Pass the updated School record to the Update() method
+	// Pass the updated School record to the Update() method
 	err = app.models.Schools.Update(school)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
-
-	//Write the data returned by Get()
+	// Write the data returned by Get()
 	err = app.writeJSON(w, http.StatusOK, envelope{"school": school}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
-
 }
 
 func (app *application) deleteSchoolHandler(w http.ResponseWriter, r *http.Request) {
