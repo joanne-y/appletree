@@ -95,3 +95,82 @@ func (app *application) showSchoolHandler(w http.ResponseWriter, r *http.Request
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) updateSchoolHandler(w http.ResponseWriter, r *http.Request) {
+	// This method does a partial replacement
+	// Get the id for the school that needs updating
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+	// Fetch the orginal record from the database
+	school, err := app.models.Schools.Get(id)
+	// Handle errors
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+	// Create an input struct to hold data read in from the client
+	// We update input struct to use pointers because pointers have a
+	// default value of nil
+	// If a field remains nil then we know that the client did not update it
+	var input struct {
+		Name    *string  `json:"name"`
+		Level   *string  `json:"level"`
+		Contact *string  `json:"contact"`
+		Phone   *string  `json:"phone"`
+		Email   *string  `json:"email"`
+		Website *string  `json:"website"`
+		Address *string  `json:"address"`
+		Mode    []string `json:"mode"`
+	}
+
+	// Initialize a new json.Decoder instance
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+	// Copy / Update the fields / values in the school variable using the fields
+	// in the input struct
+
+	school.Name = *input.Name
+	school.Level = *input.Level
+	school.Contact = *input.Contact
+	school.Phone = *input.Phone
+	school.Email = *input.Email
+	school.Website = *input.Website
+	school.Address = *input.Address
+	school.Mode = input.Mode
+
+	//Perform validation on the updated School. If validation fails, then
+	//we send a 422 - Unprocessable Entity response to the client
+	//Initialize a new Validator instance
+	v := validator.New()
+
+	//Check the map to determine if there were any validation errors
+	if data.ValidateSchool(v, school); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	//Pass the updated School record to the Update() method
+	err = app.models.Schools.Update(school)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	//Write the data returned by Get()
+	err = app.writeJSON(w, http.StatusOK, envelope{"school": school}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
