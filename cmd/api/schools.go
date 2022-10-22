@@ -4,9 +4,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"appletree.joanneyong.net/internal/data"
 	"appletree.joanneyong.net/internal/validator"
@@ -76,19 +76,20 @@ func (app *application) showSchoolHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create a new instance of the School struct containing the ID we extracted
-	// from our URL and some sample data
-	school := data.School{
-		ID:        id,
-		CreatedAt: time.Now(),
-		Name:      "Apple Tree",
-		Level:     "High School",
-		Contact:   "Anna Smith",
-		Phone:     "601-4411",
-		Address:   "14 Apple street",
-		Mode:      []string{"blended", "online"},
-		Version:   1,
+	//Fetch the specific school
+	// Fetch the specific school
+	school, err := app.models.Schools.Get(id)
+	// Handle errors
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
 	}
+	// Write the data returned by Get()
 	err = app.writeJSON(w, http.StatusOK, envelope{"school": school}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

@@ -4,6 +4,7 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"appletree.joanneyong.net/internal/validator"
@@ -72,12 +73,49 @@ func (m SchoolModel) Insert(school *School) error {
 		school.Email, school.Website,
 		school.Address, pq.Array(school.Mode),
 	}
-	return m.DB.QueryRow(query, args).Scan(&school.ID, &school.CreatedAt, &school.Version)
+	return m.DB.QueryRow(query, args...).Scan(&school.ID, &school.CreatedAt, &school.Version)
 }
 
 // Get() allows us to retreive a specific School
 func (m SchoolModel) Get(id int64) (*School, error) {
-	return nil, nil
+	// Ensure that there is a valid id
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+	// Create the query
+	query := `
+		SELECT id, created_at, name, level, contact, phone, email, website, address, mode, version
+		FROM schools
+		WHERE id = $1
+	`
+	// Declare a School variable to hold the returned data
+	var school School
+	// Execute the query using QueryRow()
+	err := m.DB.QueryRow(query, id).Scan(
+		&school.ID,
+		&school.CreatedAt,
+		&school.Name,
+		&school.Level,
+		&school.Contact,
+		&school.Phone,
+		&school.Email,
+		&school.Website,
+		&school.Address,
+		pq.Array(&school.Mode),
+		&school.Version,
+	)
+	// Handle any errors
+	if err != nil {
+		// Check the type of error
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	// Success
+	return &school, nil
 }
 
 // Update() allows us to edit/alter a specific School
