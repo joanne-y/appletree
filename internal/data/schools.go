@@ -74,6 +74,7 @@ func (m SchoolModel) Insert(school *School) error {
 		school.Address, pq.Array(school.Mode),
 	}
 	return m.DB.QueryRow(query, args...).Scan(&school.ID, &school.CreatedAt, &school.Version)
+	//IDE shows error, but code runs as expected
 }
 
 // Get() allows us to retreive a specific School
@@ -143,7 +144,17 @@ func (m SchoolModel) Update(school *School) error {
 		school.ID,
 		school.Version,
 	}
-	return m.DB.QueryRow(query, args...).Scan(&school.Version)
+	// Check for edit conflicts
+	err := m.DB.QueryRow(query, args...).Scan(&school.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
 }
 
 // Delete() removes a specific School
