@@ -3,6 +3,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 type School struct {
 	ID        int64     `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"-"`
 	Name      string    `json:"name"`
 	Level     string    `json:"level"`
 	Contact   string    `json:"contact"`
@@ -73,11 +74,15 @@ func (m SchoolModel) Insert(school *School) error {
 		school.Email, school.Website,
 		school.Address, pq.Array(school.Mode),
 	}
-	return m.DB.QueryRow(query, args...).Scan(&school.ID, &school.CreatedAt, &school.Version)
-	//IDE shows error, but code runs as expected
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Cleanup to prevent memory leaks
+	defer cancel()
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&school.ID, &school.CreatedAt, &school.Version)
+	//IDE shows error but code runs as expected
 }
 
-// Get() allows us to retreive a specific School
+// Get() allows us to retrieve a specific School
 func (m SchoolModel) Get(id int64) (*School, error) {
 	// Ensure that there is a valid id
 	if id < 1 {
@@ -91,8 +96,12 @@ func (m SchoolModel) Get(id int64) (*School, error) {
 	`
 	// Declare a School variable to hold the returned data
 	var school School
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Cleanup to prevent memory leaks
+	defer cancel()
 	// Execute the query using QueryRow()
-	err := m.DB.QueryRow(query, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&school.ID,
 		&school.CreatedAt,
 		&school.Name,
@@ -144,8 +153,12 @@ func (m SchoolModel) Update(school *School) error {
 		school.ID,
 		school.Version,
 	}
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Cleanup to prevent memory leaks
+	defer cancel()
 	// Check for edit conflicts
-	err := m.DB.QueryRow(query, args...).Scan(&school.Version)
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&school.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -168,8 +181,12 @@ func (m SchoolModel) Delete(id int64) error {
 		DELETE FROM schools
 		WHERE id = $1
 	`
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Cleanup to prevent memory leaks
+	defer cancel()
 	// Execute the query
-	result, err := m.DB.Exec(query, id)
+	result, err := m.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
